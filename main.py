@@ -6,15 +6,34 @@ from perlin_noise import PerlinNoise
 import time
 import ctypes
 import os
+import pathlib
 
-def scribble(size):
+filename = 'PerlinFractal.jpg'
+temp_path = str(pathlib.Path().absolute()) + "\\" + filename
+path = r"" + temp_path
+
+user32 = ctypes.windll.user32
+dimensions = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
+
+def display(img):
+
+    try:
+        os.remove(filename)
+    except:
+        print("File not Found")
+    cv.imwrite(filename, img)
+
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 0)
+
+
+def scribble(size, zoom):
 
     w = size[0]
     h = size[1]
 
-    frame = np.zeros((h * 2, w * 2, 3), np.uint8)
+    frame = np.zeros((math.ceil(h * 2 / zoom), math.ceil(w * 2 / zoom), 3), np.uint8)
 
-    middle = [math.ceil(w), math.ceil(h )]
+    middle = [math.ceil(w / zoom), math.ceil(h / zoom)]
 
     r = math.sqrt(pow(w / 2, 2) + pow(h / 2, 2))
 
@@ -85,21 +104,12 @@ def scribble(size):
             except:
                 print("Out of bounds")
 
+
     return frame
-
-filename = 'PerlinFractal.jpg'
-path = r"C:\Users\araus\PycharmProjects\PerlinFractals\PerlinFractal.jpg"
-
-user32 = ctypes.windll.user32
-dimensions = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
 
 while True:
 
-    current = scribble(dimensions)
+    current = scribble(dimensions, 0.5)
+    display(current)
 
-    os.remove(filename)
-    cv.imwrite(filename, current)
-
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 0)
-
-    time.sleep(5)
+    time.sleep(1)
