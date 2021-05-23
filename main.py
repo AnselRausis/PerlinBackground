@@ -7,26 +7,62 @@ import time
 import ctypes
 import os
 import pathlib
+import imageio
 
-filename = 'PerlinFractal.jpg'
-temp_path = str(pathlib.Path().absolute()) + "\\" + filename
-path = r"" + temp_path
+"""
+Design choices:
+-Save images in files:
+    Reason I did this was because if the user wanted to save as gif, it could be constructed using the images.
+    Also, they can select which version of the image they wanted as permanent stable background.
+    Animation time can be changed by changing the sleep under display_files function, though I found it stops working lower than .2
+    I had no idea why the above happens but *shrug*.
+    
+Issues:
+There is a delay between the end of one animation and the start another.
+A possible fix could be threading.... but idk rn
+"""
 
+#Paths
+absolute_path = str(pathlib.Path().absolute())
+path_to_frames = r"" + absolute_path + "\\frames"
+gif_file_name = r"" + absolute_path + "\\PerlinFractal.gif"
+
+#users stuff
 user32 = ctypes.windll.user32
 dimensions = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
 
-def display(img):
+#Display forwards and backwards
+def display(list_of_files):
+    display_files(list_of_files)
+    backwards_files = reversed(list_of_files)
+    display_files(backwards_files)
 
+"""
+Display based on list of files inputted
+"""
+def display_files(list_of_files):
+    for file in list_of_files:
+        ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + file, 0)
+        time.sleep(.25)
+
+#Init files for adding to frames
+def image_init(filename, img):
     try:
         os.remove(filename)
-    except:
-        print("File not Found")
+    except Exception:
+        print("File Deletion Issue")
     cv.imwrite(filename, img)
 
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 0)
+def save_image_to_frames(image, num_frame):
+    save_path = path_to_frames + "\\" + str(num_frame) + ".png"
+    image_init(save_path, image)
+    return save_path
 
 
-def scribble(size, zoom):
+#No idea what most of this does but it works
+def create_images(size, zoom):
+
+    images = []
 
     w = size[0]
     h = size[1]
@@ -103,13 +139,24 @@ def scribble(size, zoom):
                       math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
             except:
                 print("Out of bounds")
+        #Adds image to file and adds it to list
+        if i % 2 == 0:
+            images.append(save_image_to_frames(frame, i))
+    return images
 
 
-    return frame
+"""
+This is designed for creating a gif so someone can save the whole gif if they wanted
+"""
+def create_gif_from_image():
+    images = []
+    file_names = create_images(dimensions, .5)
+    for file in file_names:
+        images.append(imageio.imread(file))
+    imageio.mimsave(gif_file_name,images, fps=20)
 
 while True:
+    files = create_images(dimensions, .5)
+    print("Displaying New Files")
+    display(files)
 
-    current = scribble(dimensions, 0.5)
-    display(current)
-
-    time.sleep(1)
