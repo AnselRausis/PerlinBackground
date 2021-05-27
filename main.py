@@ -8,6 +8,7 @@ import ctypes
 import os
 import pathlib
 import imageio
+import threading
 
 """
 Design choices:
@@ -16,42 +17,52 @@ Design choices:
     Also, they can select which version of the image they wanted as permanent stable background.
     Animation time can be changed by changing the sleep under display_files function, though I found it stops working lower than .2
     I had no idea why the above happens but *shrug*.
-    
+
 Issues:
 There is a delay between the end of one animation and the start another.
 A possible fix could be threading.... but idk rn
 """
 
-#Paths
+# Paths
 absolute_path = str(pathlib.Path().absolute())
 path_to_frames = r"" + absolute_path + "\\frames"
 gif_file_name = r"" + absolute_path + "\\PerlinFractal.gif"
+imagepath = r"" + absolute_path + "\\PerlinFractal.jpg"
 
-#users stuff
+# users stuff
 user32 = ctypes.windll.user32
 dimensions = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
 
-#Display forwards and backwards
+
+# Display forwards and backwards
 def display(list_of_files):
     display_files(list_of_files)
     backwards_files = reversed(list_of_files)
     display_files(backwards_files)
 
+def display_singular(filename):
+
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + file, 0)
+
 """
 Display based on list of files inputted
 """
+
+
 def display_files(list_of_files):
     for file in list_of_files:
         ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + file, 0)
-        time.sleep(.25)
+        time.sleep(.55)
 
-#Init files for adding to frames
+
+# Init files for adding to frames
 def image_init(filename, img):
     try:
-        os.remove(filename)
+     os.remove(filename)
     except Exception:
         print("File Deletion Issue")
     cv.imwrite(filename, img)
+
 
 def save_image_to_frames(image, num_frame):
     save_path = path_to_frames + "\\" + str(num_frame) + ".png"
@@ -59,9 +70,8 @@ def save_image_to_frames(image, num_frame):
     return save_path
 
 
-#No idea what most of this does but it works
-def create_images(size, zoom):
-
+# No idea what most of this does but it works
+def create_images(size, zoom, animated):
     images = []
 
     w = size[0]
@@ -86,7 +96,6 @@ def create_images(size, zoom):
     shade1 = random.randint(70, 255)
     color.append(shade1)
 
-
     if random.randint(0, 2) == 1:
         color.append(random.randint(0, 255))
         color.append(0)
@@ -96,7 +105,6 @@ def create_images(size, zoom):
         color.append(random.randint(0, 255))
         red = True
 
-
     for i in range(0, 180):
 
         color[0] += random.randint(-20, 20)
@@ -105,24 +113,27 @@ def create_images(size, zoom):
         else:
             color[1] += random.randint(-20, 20)
 
-        if abs(noise(1 / (i * 2+1))) < 1/3:
-            currentradius = abs(noise(1 / (i+1)) * r * 3)
+        if abs(noise(1 / (i * 2 + 1))) < 1 / 3:
+            currentradius = abs(noise(1 / (i + 1)) * r * 3)
         else:
             currentradius = r
 
-        deltatheta = axistilt - ((2 * i)%90)
-        axisangle = math.floor((2 * i)/90) + axistilt
+        deltatheta = axistilt - ((2 * i) % 90)
+        axisangle = math.floor((2 * i) / 90) + axistilt
 
         for j in range(0, 4):
 
             sign1 = (j % 2) * 2 - 1
             sign2 = math.floor(j / 2)
 
-            xdif = math.ceil(currentradius * math.cos((axisangle + (deltatheta * sign1) + (180 * sign2) + offset) * math.pi / 180))
-            ydif = math.ceil(currentradius * math.sin((axisangle + (deltatheta * sign1) + (180 * sign2) + offset) * math.pi / 180))
+            xdif = math.ceil(
+                currentradius * math.cos((axisangle + (deltatheta * sign1) + (180 * sign2) + offset) * math.pi / 180))
+            ydif = math.ceil(
+                currentradius * math.sin((axisangle + (deltatheta * sign1) + (180 * sign2) + offset) * math.pi / 180))
 
             try:
-                cv.circle(frame, (middle[0] + xdif, middle[1] + ydif), math.floor(dotsize * 2 * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
+                cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
+                          math.floor(dotsize * 2 * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
             except:
                 print("Out of bounds")
 
@@ -131,32 +142,55 @@ def create_images(size, zoom):
             sign1 = (j % 2) * 2 - 1
             sign2 = math.floor(j / 2) * 2 - 1
 
-            xdif = math.ceil(currentradius * math.cos((axisangle + (deltatheta * sign1) + (90 * sign2) + offset) * math.pi / 180))
-            ydif = math.ceil(currentradius * math.sin((axisangle + (deltatheta * sign1) + (90 * sign2) + offset) * math.pi / 180))
+            xdif = math.ceil(
+                currentradius * math.cos((axisangle + (deltatheta * sign1) + (90 * sign2) + offset) * math.pi / 180))
+            ydif = math.ceil(
+                currentradius * math.sin((axisangle + (deltatheta * sign1) + (90 * sign2) + offset) * math.pi / 180))
 
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
-                      math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
+                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))),
+                          (color[0], color[1], color[2]), -1)
             except:
                 print("Out of bounds")
-        #Adds image to file and adds it to list
-        if i % 2 == 0:
+        # Adds image to file and adds it to list
+        if animated and i % 3 == 0:
             images.append(save_image_to_frames(frame, i))
-    return images
+    if animated:
+        return images
+    else:
+        return frame
 
 
 """
 This is designed for creating a gif so someone can save the whole gif if they wanted
 """
+
+
 def create_gif_from_image():
     images = []
     file_names = create_images(dimensions, .5)
     for file in file_names:
         images.append(imageio.imread(file))
-    imageio.mimsave(gif_file_name,images, fps=20)
+    imageio.mimsave(gif_file_name, images, fps=20)
+
+#This variable determines if the animation plays or not
+Animate = False
 
 while True:
-    files = create_images(dimensions, .5)
-    print("Displaying New Files")
-    display(files)
+
+    if Animate:
+        files = create_images(dimensions, .5, Animate)
+        print("Displaying New Files")
+        display(files)
+    else:
+        image = create_images(dimensions, .5, Animate)
+        try:
+            os.remove(imagepath)
+        except:
+            print("fileNotFound")
+        cv.imwrite(imagepath, image)
+
+        ctypes.windll.user32.SystemParametersInfoW(20, 0,imagepath , 0)
+        time.sleep(5)
 
