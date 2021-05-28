@@ -9,6 +9,7 @@ import os
 import pathlib
 import imageio
 import threading
+import tkinter as tk
 
 """
 Design choices:
@@ -69,57 +70,78 @@ def save_image_to_frames(image, num_frame):
     image_init(save_path, image)
     return save_path
 
+def getcolor():
+    color = []
+    shade1 = random.randint(0, 255)
+    color.append(shade1)
+    for i in range(0,2):
+        if random.randint(0,2) == 1:
+            if color[i] < 230:
+                color.append(random.randint(color[i]+25, 255))
+            else:
+                color.append(random.randint(0, color[i] - 25))
+        else:
+            if color[i] > 25:
+                color.append(random.randint(0, color[i] - 25))
+            else:
+                color.append(random.randint(color[i] + 25, 255))
+    return color
 
-# No idea what most of this does but it works
-def create_images(size, zoom, animated):
+
+# No idea what most of this does but it works   <<It's magic
+def create_images(size, zoom, animated, colorvariation):
     images = []
 
+    # Sets dimensions to the screen's aspect ratio
     w = size[0]
     h = size[1]
 
+    # Creates a numpy empty pixel array, essentially a blank canvas
     frame = np.zeros((math.ceil(h * 2 / zoom), math.ceil(w * 2 / zoom), 3), np.uint8)
 
+    # Uses some math to adjust bounds of the shape accordingly to the screen
     middle = [math.ceil(w / zoom), math.ceil(h / zoom)]
-
     r = math.sqrt(pow(w / 2, 2) + pow(h / 2, 2))
-
     dotsize = math.ceil(r / 10)
 
-    variation = random.randint(10, 40)
-
-    offset = random.randint(0, 270)
+    # Creates the main form of variation for the shape, by generating Perlin noise in a random octave range
+    variation = random.randint(20, 35)
     noise = PerlinNoise(octaves=variation, seed=random.randint(1, 10000))
 
+    # Sets up some numbers later used for angle variation
     axistilt = random.randint(0, 90)
+    offset = random.randint(0, 270)
 
-    color = []
-    shade1 = random.randint(70, 255)
-    color.append(shade1)
-
-    if random.randint(0, 2) == 1:
-        color.append(random.randint(0, 255))
-        color.append(0)
-        red = False
-    else:
-        color.append(0)
-        color.append(random.randint(0, 255))
-        red = True
+    # Trying to create a more dynamic color sytam than entierly random, as to have less bad colors
+    colors = []
+    colors.append(getcolor())
+    colors.append(getcolor())
+    colorincriment = 180/colorvariation
 
     for i in range(0, 180):
 
-        color[0] += random.randint(-20, 20)
-        if red:
-            color[2] += random.randint(-20, 20)
-        else:
-            color[1] += random.randint(-20, 20)
+        # Selects a different color every few frames, slowly shifts between them for all other frames
+
+        if i % (math.ceil(colorincriment)) == 0:
+            colors.pop(0)
+            colors.append(getcolor())
+            deltacolor = [math.ceil((colors[1][0] - colors[0][0]) / colorincriment), math.ceil((colors[1][1] - colors[0][1]) / colorincriment),
+                          math.ceil((colors[1][2] - colors[0][2]) / colorincriment)]
+            color = colors[0]
+
+        # Uses some perlin noise to generate a radius
 
         if abs(noise(1 / (i * 2 + 1))) < 1 / 3:
             currentradius = abs(noise(1 / (i + 1)) * r * 3)
         else:
             currentradius = r
 
+        # Selects angle offsets for both the shapes and mirror axis to add variation
+
         deltatheta = axistilt - ((2 * i) % 90)
         axisangle = math.floor((2 * i) / 90) + axistilt
+
+        # Magic
 
         for j in range(0, 4):
 
@@ -137,6 +159,8 @@ def create_images(size, zoom, animated):
             except:
                 print("Out of bounds")
 
+        # Vertical variation of magic
+
         for j in range(0, 4):
 
             sign1 = (j % 2) * 2 - 1
@@ -153,6 +177,14 @@ def create_images(size, zoom, animated):
                           (color[0], color[1], color[2]), -1)
             except:
                 print("Out of bounds")
+
+            #Color iteration
+
+            for num, col in enumerate(color):
+                color[num] += deltacolor[num]
+            print(deltacolor)
+            print(color)
+
         # Adds image to file and adds it to list
         if animated and i % 3 == 0:
             images.append(save_image_to_frames(frame, i))
@@ -174,17 +206,32 @@ def create_gif_from_image():
         images.append(imageio.imread(file))
     imageio.mimsave(gif_file_name, images, fps=20)
 
-#This variable determines if the animation plays or not
 Animate = False
+timedelay = 5
+
+def changedelay(delay):
+    global timedelay
+    timedelay = delay
+    return 0
+
+def changeanimate(what):
+    global Animate
+    Animate = what
+    print(what)
+    print(Animate)
+    return 0
+
+# This variable determines the total number of colors that the program will loop through
+totalcolors = 5
 
 while True:
 
     if Animate:
-        files = create_images(dimensions, .5, Animate)
+        files = create_images(dimensions, .5, Animate, totalcolors)
         print("Displaying New Files")
         display(files)
     else:
-        image = create_images(dimensions, .5, Animate)
+        image = create_images(dimensions, .5, Animate, totalcolors)
         try:
             os.remove(imagepath)
         except:
@@ -192,5 +239,5 @@ while True:
         cv.imwrite(imagepath, image)
 
         ctypes.windll.user32.SystemParametersInfoW(20, 0,imagepath , 0)
-        time.sleep(5)
+        time.sleep(timedelay)
 
