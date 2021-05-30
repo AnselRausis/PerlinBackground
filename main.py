@@ -124,11 +124,14 @@ def create_images(size, zoom, animated, colorvariation, delay):
     axistilt = random.randint(0, 90)
     offset = random.randint(0, 270)
 
-    # Trying to create a more dynamic color sytam than entierly random, as to have less bad colors
+    # Trying to create a more dynamic color system than entirely random, as to have less bad colors
     colors = []
     colors.append(getcolor())
     colors.append(getcolor())
     colorincriment = 180/colorvariation
+
+    # Randomly selects a color channel to base the size variation on for this image
+    colortosize = random.randint(0, 2)
 
     for i in range(0, 180):
 
@@ -137,9 +140,13 @@ def create_images(size, zoom, animated, colorvariation, delay):
         if i % (math.ceil(colorincriment)) == 0:
             colors.pop(0)
             colors.append(getcolor())
-            deltacolor = [math.ceil((colors[1][0] - colors[0][0]) / colorincriment), math.ceil((colors[1][1] - colors[0][1]) / colorincriment),
-                          math.ceil((colors[1][2] - colors[0][2]) / colorincriment)]
+            deltacolor = [(colors[1][0] - colors[0][0]) / colorincriment, (colors[1][1] - colors[0][1]) / colorincriment,
+                          (colors[1][2] - colors[0][2]) / colorincriment]
             color = colors[0]
+
+        # Attempt at adding size variation that change as the colors shift
+
+        sizeconstant = color[colortosize] / 250 + 0.5
 
         # Uses some perlin noise to generate a radius
 
@@ -167,7 +174,8 @@ def create_images(size, zoom, animated, colorvariation, delay):
 
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
-                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
+                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (math.ceil(color[0]),
+                        math.ceil(color[1]), math.ceil(color[2])), -1)
             except:
                 print("Out of bounds")
 
@@ -186,14 +194,14 @@ def create_images(size, zoom, animated, colorvariation, delay):
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
                           math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))),
-                          (color[0], color[1], color[2]), -1)
+                          (math.ceil(color[0]), math.ceil(color[1]), math.ceil(color[2])), -1)
             except:
                 print("Out of bounds")
 
-            #Color iteration
+        #Color iteration
 
-            for num, col in enumerate(color):
-                color[num] += deltacolor[num]
+        for num, col in enumerate(color):
+            color[num] += deltacolor[num]
 
 
         # Adds image to file and adds it to list
@@ -202,10 +210,10 @@ def create_images(size, zoom, animated, colorvariation, delay):
             display_singular(images[len(images)-1])
             time.sleep(0.25)
     if animated:
-        time.sleep(delay)
+        # time.sleep(delay)
         for index in range(0, len(images)):
             display_singular(images[len(images) - index - 1])
-            time.sleep(0.35)
+            time.sleep(0.5)
     else:
         try:
             os.remove(imagepath)
@@ -232,24 +240,11 @@ def create_gif_from_image():
         images.append(imageio.imread(file))
     imageio.mimsave(gif_file_name, images, fps=20)
 
-Animate = True
+Animate = False
 timedelay = 5
 totalcolors = 5
 
 while True:
 
-    if Animate:
-        files = create_images(dimensions, .5, Animate, totalcolors, timedelay)
-        # print("Displaying New Files")
-        # display(files)
-    else:
-        image = create_images(dimensions, .5, Animate, totalcolors, timedelay)
-        try:
-            os.remove(imagepath)
-        except:
-            print("fileNotFound")
-        cv.imwrite(imagepath, image)
-
-        ctypes.windll.user32.SystemParametersInfoW(20, 0, imagepath, 0)
-        time.sleep(timedelay)
+    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay)
 
