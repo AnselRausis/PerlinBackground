@@ -8,6 +8,7 @@ import ctypes
 import os
 import pathlib
 import imageio
+import tkinter as tk
 
 """
 Design choices:
@@ -73,10 +74,16 @@ def save_image_to_frames(image, num_frame, currentpath):
 
 def getcolor():
 
+    """
+    This is used for color setting number 1, it generate a random high value for the blue channel, and then generates
+    middle-value ones for red and green that are at least 50 apart. This is done in an attempt to avoid grey and brown
+
+    """
+
     color = []
     hue = random.randint(0, 1)
 
-    color.append(random.randint(0, 255))
+    color.append(random.randint(100, 200))
 
     if hue == 0:
         color.append(random.randint(0, 255))
@@ -124,7 +131,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
     axistilt = random.randint(0, 90)
     offset = random.randint(0, 270)
 
-    # Trying to create a more dynamic color system than entirely random, as to have less bad colors
+    # Trying to create a more dynamic color system than entirely random, as to have less bad colors but more variation
 
     if colormode == 1:
         colors = []
@@ -132,8 +139,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
         colors.append(getcolor())
         colorincriment = 180/colorvariation
 
-    # Randomly selects a color channel to base the size variation on for this image
-    colortosize = random.randint(0, 2)
+    # This has less variation, but avoids bad colors by assigning 0 to either green or red, as to avoid browns/yellows
 
     if colormode == 3:
         if random.randint(0, 1) == 0:
@@ -142,6 +148,16 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
         else:
             color = [random.randint(50, 1755), random.randint(50, 175), 0]
             red = False
+
+    # The idea here is to create a shape where the color fades as it goes outwards
+
+    if colormode == 4:
+        centralcol = getcolor()
+        color = [255, 0, 0]
+
+    # Don't mind me, just intializing a variable needed later
+
+    sizeconstant = 1
 
     for i in range(0, 180):
 
@@ -156,6 +172,8 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
                               (colors[1][2] - colors[0][2]) / colorincriment]
                 color = colors[0]
 
+        # This just picks a random color for every single dot using the starting color method for color type 3.
+
         if colormode == 2:
             if random.randint(0,1) == 0:
                 color = [random.randint(50, 175), 0, random.randint(50, 175)]
@@ -164,9 +182,13 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
                 color = [random.randint(50, 175), random.randint(50, 175), 0]
                 red = False
 
-        # Attempt at adding size variation that change as the colors shift
+        # Attempt at adding size variation that change in a similar manner to color mode 1
 
-        sizeconstant = color[colortosize] / 250 + 0.5
+        if i % 10 == 0 or i == 0:
+            targetsize = random.randrange(50, 150, 1) / 100
+            deltasize = (targetsize - sizeconstant) / 10
+
+        sizeconstant += deltasize
 
         # Uses some perlin noise to generate a radius
 
@@ -174,6 +196,13 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
             currentradius = abs(noise(1 / (i + 1)) * r * 3)
         else:
             currentradius = r
+
+        # Colormode 4 comes after the radius generation because it's reliant on it
+
+        if colormode == 4:
+            for channel in range(0, 3):
+                temporary = centralcol[channel] / ((currentradius/150 + 1))
+                color[channel] = temporary
 
         # Selects angle offsets for both the shapes and mirror axis to add variation
 
@@ -194,7 +223,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
 
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
-                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (math.ceil(color[0]),
+                          math.floor(dotsize * 75 / variation * sizeconstant * abs(noise(1 / (i + 1)))), (math.ceil(color[0]),
                         math.ceil(color[1]), math.ceil(color[2])), -1)
             except:
                 print("Out of bounds")
@@ -213,7 +242,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
 
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
-                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))),
+                          math.floor(dotsize * 75 / variation * sizeconstant * abs(noise(1 / (i + 1)))),
                           (math.ceil(color[0]), math.ceil(color[1]), math.ceil(color[2])), -1)
             except:
                 print("Out of bounds")
@@ -272,8 +301,9 @@ def create_gif_from_image():
 Animate = False
 timedelay = 5
 totalcolors = 5
+colortype = 4
 
 while True:
 
-    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay, 3)
+    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay, colortype)
 
