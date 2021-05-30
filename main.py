@@ -8,8 +8,6 @@ import ctypes
 import os
 import pathlib
 import imageio
-import threading
-import tkinter as tk
 
 """
 Design choices:
@@ -30,6 +28,9 @@ path_to_frames = r"" + absolute_path + "\\frames"
 gif_file_name = r"" + absolute_path + "\\PerlinFractal.gif"
 imagepath = r"" + absolute_path + "\\PerlinFractal.jpg"
 
+if not os.path.exists(path_to_frames):
+    os. mkdir(path_to_frames)
+
 # users stuff
 user32 = ctypes.windll.user32
 dimensions = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
@@ -43,7 +44,7 @@ def display(list_of_files):
 
 def display_singular(filename):
 
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + file, 0)
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + filename, 0)
 
 """
 Display based on list of files inputted
@@ -65,31 +66,42 @@ def image_init(filename, img):
     cv.imwrite(filename, img)
 
 
-def save_image_to_frames(image, num_frame):
-    save_path = path_to_frames + "\\" + str(num_frame) + ".png"
+def save_image_to_frames(image, num_frame, currentpath):
+    save_path = currentpath + "\\" + str(num_frame) + ".png"
     image_init(save_path, image)
     return save_path
 
 def getcolor():
+
     color = []
-    shade1 = random.randint(0, 255)
-    color.append(shade1)
-    for i in range(0,2):
-        if random.randint(0,2) == 1:
-            if color[i] < 230:
-                color.append(random.randint(color[i]+25, 255))
-            else:
-                color.append(random.randint(0, color[i] - 25))
+    hue = random.randint(0, 1)
+
+    color.append(random.randint(0, 255))
+
+    if hue == 0:
+        color.append(random.randint(0, 255))
+
+    i = len(color) - 1
+
+    if random.randint(0,2) == 1:
+        if color[i] < 125:
+            color.append(random.randint(color[i]+50, 175))
         else:
-            if color[i] > 25:
-                color.append(random.randint(0, color[i] - 25))
-            else:
-                color.append(random.randint(color[i] + 25, 255))
+            color.append(random.randint(25, color[i] - 50))
+    else:
+        if color[i] > 75:
+            color.append(random.randint(25, color[i] - 50))
+        else:
+            color.append(random.randint(color[i] + 50, 175))
+
+    if hue == 1:
+        color.append(random.randint(0, 255))
+
     return color
 
 
 # No idea what most of this does but it works   <<It's magic
-def create_images(size, zoom, animated, colorvariation):
+def create_images(size, zoom, animated, colorvariation, delay):
     images = []
 
     # Sets dimensions to the screen's aspect ratio
@@ -155,11 +167,11 @@ def create_images(size, zoom, animated, colorvariation):
 
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
-                          math.floor(dotsize * 2 * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
+                          math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (color[0], color[1], color[2]), -1)
             except:
                 print("Out of bounds")
 
-        # Vertical variation of magic
+        # Vertical mirroring of magic
 
         for j in range(0, 4):
 
@@ -182,16 +194,30 @@ def create_images(size, zoom, animated, colorvariation):
 
             for num, col in enumerate(color):
                 color[num] += deltacolor[num]
-            print(deltacolor)
-            print(color)
+
 
         # Adds image to file and adds it to list
         if animated and i % 3 == 0:
-            images.append(save_image_to_frames(frame, i))
+            images.append(save_image_to_frames(frame, i, path_to_frames))
+            display_singular(images[len(images)-1])
+            time.sleep(0.25)
     if animated:
-        return images
+        time.sleep(delay)
+        for index in range(0, len(images)):
+            display_singular(images[len(images) - index - 1])
+            time.sleep(0.35)
     else:
-        return frame
+        try:
+            os.remove(imagepath)
+        except:
+            print("fileNotFound")
+        cv.imwrite(imagepath, frame)
+
+        ctypes.windll.user32.SystemParametersInfoW(20, 0, imagepath, 0)
+        time.sleep(delay)
+
+
+
 
 
 """
@@ -206,38 +232,24 @@ def create_gif_from_image():
         images.append(imageio.imread(file))
     imageio.mimsave(gif_file_name, images, fps=20)
 
-Animate = False
+Animate = True
 timedelay = 5
-
-def changedelay(delay):
-    global timedelay
-    timedelay = delay
-    return 0
-
-def changeanimate(what):
-    global Animate
-    Animate = what
-    print(what)
-    print(Animate)
-    return 0
-
-# This variable determines the total number of colors that the program will loop through
 totalcolors = 5
 
 while True:
 
     if Animate:
-        files = create_images(dimensions, .5, Animate, totalcolors)
-        print("Displaying New Files")
-        display(files)
+        files = create_images(dimensions, .5, Animate, totalcolors, timedelay)
+        # print("Displaying New Files")
+        # display(files)
     else:
-        image = create_images(dimensions, .5, Animate, totalcolors)
+        image = create_images(dimensions, .5, Animate, totalcolors, timedelay)
         try:
             os.remove(imagepath)
         except:
             print("fileNotFound")
         cv.imwrite(imagepath, image)
 
-        ctypes.windll.user32.SystemParametersInfoW(20, 0,imagepath , 0)
+        ctypes.windll.user32.SystemParametersInfoW(20, 0, imagepath, 0)
         time.sleep(timedelay)
 
