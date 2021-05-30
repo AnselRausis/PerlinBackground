@@ -1,5 +1,5 @@
 import numpy as np
-import random
+import random, threading
 import math
 import cv2 as cv
 from perlin_noise import PerlinNoise
@@ -8,6 +8,8 @@ import ctypes
 import os
 import pathlib
 import imageio
+import tkinter
+from PIL import Image
 
 """
 Design choices:
@@ -28,8 +30,11 @@ path_to_frames = r"" + absolute_path + "\\frames"
 gif_file_name = r"" + absolute_path + "\\PerlinFractal.gif"
 imagepath = r"" + absolute_path + "\\PerlinFractal.jpg"
 
+playPath = absolute_path + "\\play.png"
+pausePath = absolute_path + "\\pause.png"
+
 if not os.path.exists(path_to_frames):
-    os. mkdir(path_to_frames)
+    os.mkdir(path_to_frames)
 
 # users stuff
 user32 = ctypes.windll.user32
@@ -42,9 +47,10 @@ def display(list_of_files):
     backwards_files = reversed(list_of_files)
     display_files(backwards_files)
 
-def display_singular(filename):
 
+def display_singular(filename):
     ctypes.windll.user32.SystemParametersInfoW(20, 0, f"" + filename, 0)
+
 
 """
 Display based on list of files inputted
@@ -60,7 +66,7 @@ def display_files(list_of_files):
 # Init files for adding to frames
 def image_init(filename, img):
     try:
-     os.remove(filename)
+        os.remove(filename)
     except Exception:
         print("File Deletion Issue")
     cv.imwrite(filename, img)
@@ -71,8 +77,8 @@ def save_image_to_frames(image, num_frame, currentpath):
     image_init(save_path, image)
     return save_path
 
-def getcolor():
 
+def getcolor():
     color = []
     hue = random.randint(0, 1)
 
@@ -83,9 +89,9 @@ def getcolor():
 
     i = len(color) - 1
 
-    if random.randint(0,2) == 1:
+    if random.randint(0, 2) == 1:
         if color[i] < 125:
-            color.append(random.randint(color[i]+50, 175))
+            color.append(random.randint(color[i] + 50, 175))
         else:
             color.append(random.randint(25, color[i] - 50))
     else:
@@ -130,7 +136,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
         colors = []
         colors.append(getcolor())
         colors.append(getcolor())
-        colorincriment = 180/colorvariation
+        colorincriment = 180 / colorvariation
 
     # Randomly selects a color channel to base the size variation on for this image
     colortosize = random.randint(0, 2)
@@ -152,12 +158,13 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
             if i % (math.ceil(colorincriment)) == 0:
                 colors.pop(0)
                 colors.append(getcolor())
-                deltacolor = [(colors[1][0] - colors[0][0]) / colorincriment, (colors[1][1] - colors[0][1]) / colorincriment,
+                deltacolor = [(colors[1][0] - colors[0][0]) / colorincriment,
+                              (colors[1][1] - colors[0][1]) / colorincriment,
                               (colors[1][2] - colors[0][2]) / colorincriment]
                 color = colors[0]
 
         if colormode == 2:
-            if random.randint(0,1) == 0:
+            if random.randint(0, 1) == 0:
                 color = [random.randint(50, 175), 0, random.randint(50, 175)]
                 red = True
             else:
@@ -195,7 +202,8 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
             try:
                 cv.circle(frame, (middle[0] + xdif, middle[1] + ydif),
                           math.floor(dotsize * 75 / variation * abs(noise(1 / (i + 1)))), (math.ceil(color[0]),
-                        math.ceil(color[1]), math.ceil(color[2])), -1)
+                                                                                           math.ceil(color[1]),
+                                                                                           math.ceil(color[2])), -1)
             except:
                 print("Out of bounds")
 
@@ -218,7 +226,7 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
             except:
                 print("Out of bounds")
 
-        #Color iteration
+        # Color iteration
 
         if colormode == 1:
 
@@ -228,15 +236,14 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
         if colormode == 3:
             color[0] += random.randint(-20, 20)
             if red:
-                color[2] += random.randint(-20,20)
+                color[2] += random.randint(-20, 20)
             else:
                 color[1] += random.randint(-20, 20)
-
 
         # Adds image to file and adds it to list
         if animated and i % 3 == 0:
             images.append(save_image_to_frames(frame, i, path_to_frames))
-            display_singular(images[len(images)-1])
+            display_singular(images[len(images) - 1])
             time.sleep(0.25)
     if animated:
         # time.sleep(delay)
@@ -254,9 +261,6 @@ def create_images(size, zoom, animated, colorvariation, delay, colormode):
         time.sleep(delay)
 
 
-
-
-
 """
 This is designed for creating a gif so someone can save the whole gif if they wanted
 """
@@ -269,11 +273,68 @@ def create_gif_from_image():
         images.append(imageio.imread(file))
     imageio.mimsave(gif_file_name, images, fps=20)
 
+
 Animate = False
 timedelay = 5
 totalcolors = 5
 
-while True:
 
-    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay, 3)
+class Display(tkinter.Frame):
 
+    def __init__(self, master=None):
+        self.pause = False
+        master.geometry("500x200")
+        super().__init__(master)
+        self.pack()
+        self.create_screen()
+
+    def create_screen(self):
+
+        self.settingsLabel = tkinter.Label(self, text="Screen Saver Settings", fg="red", bd=5, font=("Courier", 25))
+        self.pauseButton = tkinter.Button(self, command=self.pause_button_pressed)
+        self.change_button(pausePath)
+
+        self.settingsLabel.pack()
+        self.pauseButton.pack(pady=30, padx=30)
+
+    def pause_button_pressed(self):
+        if self.pause:
+            self.change_button(pausePath)
+            self.pause = False
+        else:
+            self.change_button(playPath)
+            self.pause = True
+
+    def change_button(self, path):
+        photo = self.get_photo(path)
+
+        # Makes image display
+        self.pauseButton["image"] = photo
+
+        # Stores in memory as to not be garbage collected
+        self.pauseButton.image = photo
+
+    def get_photo(self, path):
+        return tkinter.PhotoImage(file=(r"" + path))
+
+    def get_pause(self):
+        return self.pause
+
+
+tk = tkinter.Tk(className=" Screen Saver Settings")
+app = Display(master=tk)
+
+
+def start_images():
+    while True:
+
+        # Checks if pause button pressed, then checks every second. Cannot stop animation in the middle.
+        while app.get_pause():
+
+            time.sleep(1)
+
+        files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay, 3)
+
+#Threading for the GUI
+threading.Thread(target=start_images).start()
+app.mainloop()
