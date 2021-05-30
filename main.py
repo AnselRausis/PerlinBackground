@@ -101,7 +101,7 @@ def getcolor():
 
 
 # No idea what most of this does but it works   <<It's magic
-def create_images(size, zoom, animated, colorvariation, delay):
+def create_images(size, zoom, animated, colorvariation, delay, colormode):
     images = []
 
     # Sets dimensions to the screen's aspect ratio
@@ -125,24 +125,44 @@ def create_images(size, zoom, animated, colorvariation, delay):
     offset = random.randint(0, 270)
 
     # Trying to create a more dynamic color system than entirely random, as to have less bad colors
-    colors = []
-    colors.append(getcolor())
-    colors.append(getcolor())
-    colorincriment = 180/colorvariation
+
+    if colormode == 1:
+        colors = []
+        colors.append(getcolor())
+        colors.append(getcolor())
+        colorincriment = 180/colorvariation
 
     # Randomly selects a color channel to base the size variation on for this image
     colortosize = random.randint(0, 2)
+
+    if colormode == 3:
+        if random.randint(0, 1) == 0:
+            color = [random.randint(50, 175), 0, random.randint(50, 175)]
+            red = True
+        else:
+            color = [random.randint(50, 1755), random.randint(50, 175), 0]
+            red = False
 
     for i in range(0, 180):
 
         # Selects a different color every few frames, slowly shifts between them for all other frames
 
-        if i % (math.ceil(colorincriment)) == 0:
-            colors.pop(0)
-            colors.append(getcolor())
-            deltacolor = [(colors[1][0] - colors[0][0]) / colorincriment, (colors[1][1] - colors[0][1]) / colorincriment,
-                          (colors[1][2] - colors[0][2]) / colorincriment]
-            color = colors[0]
+        if colormode == 1:
+
+            if i % (math.ceil(colorincriment)) == 0:
+                colors.pop(0)
+                colors.append(getcolor())
+                deltacolor = [(colors[1][0] - colors[0][0]) / colorincriment, (colors[1][1] - colors[0][1]) / colorincriment,
+                              (colors[1][2] - colors[0][2]) / colorincriment]
+                color = colors[0]
+
+        if colormode == 2:
+            if random.randint(0,1) == 0:
+                color = [random.randint(50, 175), 0, random.randint(50, 175)]
+                red = True
+            else:
+                color = [random.randint(50, 175), random.randint(50, 175), 0]
+                red = False
 
         # Attempt at adding size variation that change as the colors shift
 
@@ -200,8 +220,17 @@ def create_images(size, zoom, animated, colorvariation, delay):
 
         #Color iteration
 
-        for num, col in enumerate(color):
-            color[num] += deltacolor[num]
+        if colormode == 1:
+
+            for num, col in enumerate(color):
+                color[num] += deltacolor[num]
+
+        if colormode == 3:
+            color[0] += random.randint(-20, 20)
+            if red:
+                color[2] += random.randint(-20,20)
+            else:
+                color[1] += random.randint(-20, 20)
 
 
         # Adds image to file and adds it to list
@@ -246,5 +275,5 @@ totalcolors = 5
 
 while True:
 
-    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay)
+    files = create_images(dimensions, 0.5, Animate, totalcolors, timedelay, 3)
 
